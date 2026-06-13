@@ -1,0 +1,67 @@
+### IntelliJ IDEA ###
+.idea/
+*.iml
+*.iws
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+.kotlin
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Operating Systems ###
+.DS_Store
+thumbs.db
+
+# ====================================================================
+# Модуль Java / Бэкенд (папка backend/)
+# ====================================================================
+# Игнорируем папку сборки Maven (где лежат скомпилированные .class файлы и .jar)
+backend/target/
+
+# Логи работы сервера
+backend/*.log
+backend/logs/
+
+# ====================================================================
+# Модуль Python / NLP (папка python/)
+# ====================================================================
+# Игнорируем виртуальное окружение
+python/venv/
+python/.venv/
+python/env/
+
+# Кэш Python компилятора
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+python/.pytest_cache/
+
+# ====================================================================
+# Фронтенд / Клиент (папка client/) — на будущее
+# ====================================================================
+client/node_modules/
+client/dist/
+client/.env.local
+client/*.log
