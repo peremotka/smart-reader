@@ -8,7 +8,7 @@ def clean_text(text: str) -> list:
     text (str): Исходная строка для обработки.
 
     Возвращает:
-    str: Очищенная строка.
+    list: Список очищенных токенов.
     """
     text = re.sub(r'<[^>]+>', ' ', text)
     text = re.sub(r'https?://\S+|www\.\S+|\S+\.(com|ru|net|org|io)\S*', ' ', text)
@@ -16,3 +16,4 @@ def clean_text(text: str) -> list:
     words = re.findall(r'[^\W\d_]+',text.lower())
 
     return words
+
