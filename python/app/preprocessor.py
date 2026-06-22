@@ -25,10 +25,11 @@ def clean_and_tokenize(text: str) -> list:
     Возвращает:
     list: Список токенов.
     """
+    text = text.lower()
+
     text = re.sub(r'<[^>]+>', ' ', text)
     text = re.sub(r'https?://\S+|www\.\S+|\S+\.(com|ru|net|org|io)\S*', ' ', text)
 
-    text = text.lower()
     tokens = word_tokenize(text)
 
     return tokens
