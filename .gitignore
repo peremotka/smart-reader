@@ -58,6 +58,8 @@ python/env/
 *.pyd
 python/.pytest_cache/
 
+python/scripts/*.csv
+
 # Локальные базы данных и словари NLTK
 python/nltk_data/
 # ====================================================================

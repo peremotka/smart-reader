@@ -1,19 +1,18 @@
-import os
 import re
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
+from collections import Counter
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PROJECT_NLTK_PATH = os.path.join(BASE_DIR, 'nltk_data')
-nltk.data.path.append(PROJECT_NLTK_PATH)
+from app.config import CEFR_DICTIONARY
 
-nltk.download('punkt', download_dir=PROJECT_NLTK_PATH, quiet=True)
-nltk.download('punkt_tab', download_dir=PROJECT_NLTK_PATH, quiet=True)
-nltk.download('stopwords', download_dir=PROJECT_NLTK_PATH, quiet=True)
-nltk.download('wordnet', download_dir=PROJECT_NLTK_PATH, quiet=True)
-nltk.download('averaged_perceptron_tagger_eng', download_dir=PROJECT_NLTK_PATH, quiet=True)
+LEMMATIZER = WordNetLemmatizer()
+STOP_WORDS = set(stopwords.words("english"))
+
+LEVEL_SCALE = ["A1", "A2", "B1", "B2", "C1", "C2"]
+# Хэш-таблица для мгновенного поиска веса уровня O(1)
+LEVEL_WEIGHTS = {lvl: idx for idx, lvl in enumerate(LEVEL_SCALE)}
 
 def clean_and_tokenize(text: str) -> list:
     """
@@ -50,38 +49,108 @@ def get_wordnet_pos(tag: str) -> str:
 def lemmatize_with_pos(tokens: list) -> list:
     """
     Лемматизирует слова с учетом их реальной части речи.
-    """
-    lemmatizer = WordNetLemmatizer()
 
+    Аргументы:
+    tokens (list): Список исходных слов (токенов).
+
+    Возвращает:
+    list: Список базовых форм слов (лемм).
+    """
     pos_tags = nltk.pos_tag(tokens)
 
-    lemmatized_words = []
-    for word, tag in pos_tags:
-        pos = get_wordnet_pos(tag)
-        lemma = lemmatizer.lemmatize(word, pos=pos)
-        lemmatized_words.append(lemma)
-
-    return lemmatized_words
+    return [
+        LEMMATIZER.lemmatize(word, pos=get_wordnet_pos(tag))
+        for word, tag in pos_tags
+    ]
 
 def filter_tokens(tokens: list) -> list:
     """
     Удаляет стоп-слова, знаки препинания и токены длиной меньше 2 символов.
+
+    Аргументы:
+    tokens (list): Список лемматизированных слов.
+
+    Возвращает:
+    list: Очищенный список значимых слов.
     """
-    stop_words = set(stopwords.words('english'))
+    return [
+        token
+        for token in tokens
+        if token.isalpha() and token not in STOP_WORDS and len(token) > 1
+    ]
 
-    tokens = [token for token in tokens if token.isalpha() and token not in stop_words and len(token) > 1]
-
-    return tokens
-
-
-def text_pipeline(text:str) :
+def filter_by_cefr_level(tokens:list[str], user_level:str, cefr_dict: dict = CEFR_DICTIONARY):
     """
-    Полный пайплайн: Очистка -> Токенизация -> Фильтрация мусора и стоп-слов -> Лемматизация.
+    Фильтрует леммы, оставляя только те, которые соответствуют или ВЫШЕ уровня пользователя.
+    (Например, если у пользователя B1, мы оставляем B1, B2, C1, чтобы он учил незнакомые сложные слова).
+
+    Аргументы:
+    tokens (list[str]): Список уникальных слов для проверки.
+    user_level (str): Текущий уровень владения языком пользователя (например, 'B1').
+    cefr_dict (dict): Словарь соответствия слов уровням CEFR. По умолчанию используется CEFR_DICTIONARY.
+
+    Возвращает:
+    list: Список кортежей вида [(слово, уровень_сложности), ...].
+    """
+    user_weight = LEVEL_WEIGHTS.get(user_level.upper(), 0)
+    result_data = []
+
+    for word in tokens:
+        word_level = cefr_dict.get(word, 'C2')
+        word_weight = LEVEL_WEIGHTS.get(word_level, 5)
+
+        if word_weight >= user_weight:
+            result_data.append((word, word_level))
+
+    return result_data
+
+def generate_analytical_report(original_text: str, complex_words_with_levels: list, counts: Counter) -> dict:
+    """
+    Формирует единый аналитический отчет на основе уже отфильтрованных данных.
+
+    Аргументы:
+    original_text (str): Исходный необработанный текст для подсчета символов.
+    complex_words_with_levels (list): Список отфильтрованных кортежей (слово, уровень).
+    counts (Counter): Объект Counter с частотностью упоминания каждого слова.
+
+    Возвращает:
+    dict: Структурированный отчет с метриками аналитики и списком слов для изучения.
+    """
+    words_to_learn = []
+
+    for word, level in complex_words_with_levels:
+        words_to_learn.append({
+            "word": word,
+            "count": counts[word],
+            "level": level
+        })
+
+    return {
+        "analytics": {
+            "total_characters": len(original_text),
+            "total_words_count": sum(counts.values()),
+            "complex_words_count": len(complex_words_with_levels)
+        },
+        "words_to_learn": words_to_learn
+    }
+
+def text_pipeline(text:str, user_level: str):
+    """
+    Полный пайплайн: Очистка и токенизация -> Лемматизация -> Фильтрация мусора и стоп-слов.
+
+    Аргументы:
+    text (str): Входной сырой текст (может содержать HTML и ссылки).
+    user_level (str): Уровень пользователя для фильтрации сложности.
+
+    Возвращает:
+    dict: Финальный аналитический отчет со статистикой текста и подборкой сложных слов.
     """
     tokens = clean_and_tokenize(text)
-
     lemmatized_tokens = lemmatize_with_pos(tokens)
-
     filtered_tokens = filter_tokens(lemmatized_tokens)
 
-print(text_pipeline("<p>The tech-savvy student was successfully running her first NLP pipeline! </p> Check out https://github.com for more details. It's an amazing experience, isn't it? She bought 3 new books about AI and went to the library at 10 AM."))
+    counts = Counter(filtered_tokens)
+
+    unique_complex_words = filter_by_cefr_level(list(counts.keys()), user_level)
+
+    return generate_analytical_report(text, unique_complex_words, counts)
